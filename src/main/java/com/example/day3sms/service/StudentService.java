@@ -1,11 +1,15 @@
 package com.example.day3sms.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
+import com.example.day3sms.dto.StudentRequestDto;
+import com.example.day3sms.dto.StudentResponseDto;
+import com.example.day3sms.exception.StudentNotFoundException;
 import com.example.day3sms.model.StudentModel;
 import com.example.day3sms.repository.StudentRepository;
-import org.springframework.stereotype.Service;
-import java.util.List;
-import java.util.Optional;
-
 
 @Service
 public class StudentService {
@@ -14,25 +18,58 @@ public class StudentService {
     public StudentService(StudentRepository repository) {
         this.repository = repository;
     }
-    //create
-    public StudentModel addStudent(StudentModel student) {
-        return repository.save(student);
-    }
-    //display
-    public List<StudentModel> getStudents(){
-        return repository.findAll();
-    }
-    //display by id
-    public Optional<StudentModel> getStudentById(String id){
-        return repository.findById(id);
-    }
-    //update
-    public StudentModel updateStudent(String id, StudentModel student) {
-        return repository.save(student);
-    }
-    //delete by id
-    public void deleteStudentById(String id) {
-        repository.deleteById(id);
+
+    // Conversion methods
+    private StudentModel toEntity(StudentRequestDto dto) {
+        StudentModel student = new StudentModel();
+        student.setName(dto.getName());
+        student.setAge(dto.getAge());
+        student.setEmail(dto.getEmail());
+        return student;
     }
 
+    private StudentResponseDto toResponseDto(StudentModel student) {
+        return new StudentResponseDto(student.getId(), student.getName(), student.getAge(), student.getEmail());
+    }
+
+    // Create
+    public StudentResponseDto addStudent(StudentRequestDto studentDto) {
+        StudentModel student = toEntity(studentDto);
+        StudentModel savedStudent = repository.save(student);
+        return toResponseDto(savedStudent);
+    }
+
+    // Read All
+    public List<StudentResponseDto> getAllStudents() {
+        return repository.findAll().stream()
+                .map(this::toResponseDto)
+                .collect(Collectors.toList());
+    }
+
+    // Read by ID
+    public StudentResponseDto getStudentById(String id) {
+        return repository.findById(id)
+                .map(this::toResponseDto)
+                .orElseThrow(() -> new StudentNotFoundException("Student not found with id: " + id));
+    }
+
+    // Update
+    public StudentResponseDto updateStudent(String id, StudentRequestDto studentDto) {
+        // Check if student exists
+        if (!repository.existsById(id)) {
+            throw new StudentNotFoundException("Student not found with id: " + id);
+        }
+        StudentModel student = toEntity(studentDto);
+        student.setId(id);
+        StudentModel updatedStudent = repository.save(student);
+        return toResponseDto(updatedStudent);
+    }
+
+    // Delete
+    public void deleteStudent(String id) {
+        if (!repository.existsById(id)) {
+            throw new StudentNotFoundException("Student not found with id: " + id);
+        }
+        repository.deleteById(id);
+    }
 }
